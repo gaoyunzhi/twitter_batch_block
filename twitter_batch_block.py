@@ -41,7 +41,7 @@ def block(link, target):
     for user in likers + retweeters:
         if existing.contain(user.username):
             continue
-        time.sleep(1)
+        time.sleep(5)
         followers = main_client.get_users_followers(user.id).data or []
         intersection = get_intersection(main_followering, followers)
         if intersection:
