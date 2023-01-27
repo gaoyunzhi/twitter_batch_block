@@ -41,11 +41,11 @@ def block(link, target):
     for user in likers + retweeters:
         if existing.contain(user.username):
             continue
-        time.sleep(5)
+        time.sleep(30)
         followers = main_client.get_users_followers(user.id).data or []
         intersection = get_intersection(main_followering, followers)
         if intersection:
             print(' '.join([toLink(x) for x in user.username + list(intersection)]))
         else:
             tele_target.send_message(user.username)
-        existing.add(user.username)
+            existing.add(user.username)
