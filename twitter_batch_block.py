@@ -21,31 +21,25 @@ def getLink(x):
 
 def block(link, target):
     tele_target = bot.get_chat(target)
-    clients = []
-    for user, user_setting in credential['users'].items():
-        client = tweepy.Client(
-            bearer_token=credential['bearer_token'],
-            consumer_key=credential['consumer_key'],
-            consumer_secret=credential['consumer_secret'],
-            access_token=user_setting['access_key'],
-            access_token_secret=user_setting['access_secret'])
-        if user == 'main':
-            main_client = client
-        else:
-            clients.append(client)
+    client = tweepy.Client(
+        bearer_token=credential['bearer_token'],
+        consumer_key=credential['consumer_key'],
+        consumer_secret=credential['consumer_secret'],
+        access_token=credential['access_key'],
+        access_token_secret=credential['access_secret'])
     tweet_id = int(link.split('/')[-1])
-    likers = main_client.get_liking_users(tweet_id).data
-    retweeters = main_client.get_retweeters(tweet_id).data
-    me = main_client.get_user(username=credential['main_user']).data
-    main_followering = main_client.get_users_following(me.id).data
+    likers = client.get_liking_users(tweet_id).data
+    retweeters = client.get_retweeters(tweet_id).data
+    me = client.get_user(username=credential['main_user']).data
+    me_followering = client.get_users_following(me.id).data
     for user in likers + retweeters:
         if existing.contain(user.username):
             continue
-        time.sleep(30)
-        followers = main_client.get_users_followers(user.id).data or []
-        intersection = get_intersection(main_followering, followers)
+        time.sleep(120)
+        followers = client.get_users_followers(user.id).data or []
+        intersection = get_intersection(me_followering, followers)
         if intersection:
             print(' '.join([toLink(x) for x in user.username + list(intersection)]))
         else:
             tele_target.send_message(user.username)
-            existing.add(user.username)
+        existing.add(user.username)
