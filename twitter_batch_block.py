@@ -28,8 +28,8 @@ def block(link, target):
         access_token=credential['access_key'],
         access_token_secret=credential['access_secret'])
     tweet_id = int(link.split('/')[-1])
-    likers = client.get_liking_users(tweet_id).data
-    retweeters = client.get_retweeters(tweet_id).data
+    likers = client.get_liking_users(tweet_id).data or []
+    retweeters = client.get_retweeters(tweet_id).data or []
     me = client.get_user(username=credential['main_user']).data
     me_followering = client.get_users_following(me.id).data
     for user in likers + retweeters:
