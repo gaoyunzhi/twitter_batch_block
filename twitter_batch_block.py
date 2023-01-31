@@ -44,7 +44,7 @@ def load_single(me, db_name, f):
         for user in result.data:
             db.add(user.username)
         print(result.meta.keys())
-        token = result.meta['next_token']
+        token = result.meta.get('next_token')
         if not token:
             return
         wait(str(f), 60)
@@ -56,6 +56,8 @@ def load_dbs(user, client):
         'followering': client.get_users_following}
     me = client.get_user(username=user).data
     for suffix, f in suffix_to_method.items():
+        if user == credential['main_user'] and suffix == 'followers':
+            continue
         load_single(me, user + '_' + suffix, f)
 
 def load_db_all():
