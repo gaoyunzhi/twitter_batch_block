@@ -42,8 +42,9 @@ def load_single(me, db_name, f):
     while result.data:
         print(len(result.data))
         for user in result.data:
-            plain_db.add(user.username)
-        token = result.meta.next_token
+            db.add(user.username)
+        print(result.meta.keys())
+        token = result.meta['next_token']
         if not token:
             return
         wait(str(f), 60)
