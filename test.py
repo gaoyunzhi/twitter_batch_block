@@ -26,4 +26,5 @@ def testSingleBlock():
 if __name__ == '__main__':
 	# test()
 	# testSingleBlock()
-	load_db_all()
+	# load_db_all()
+	load_db_additional()

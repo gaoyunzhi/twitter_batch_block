@@ -24,39 +24,41 @@ def prepare_dbs():
         followers_db = plain_db.loadKeyOnlyDB(user + '_followers')
         followering_db = plain_db.loadKeyOnlyDB(user + '_followering')
 
+def get_client(user):
+    return tweepy.Client(
+        bearer_token=credential['bearer_token'],
+        consumer_key=credential['consumer_key'],
+        consumer_secret=credential['consumer_secret'],
+        access_token=credential['users'][user]['access_key'],
+        access_token_secret=credential['users'][user]['access_secret'])
+
 def prepare_clients():
     global clients
     clients = {}
-    for user, setting in credential['users'].items():
-        clients[user] = client = tweepy.Client(
-            bearer_token=credential['bearer_token'],
-            consumer_key=credential['consumer_key'],
-            consumer_secret=credential['consumer_secret'],
-            access_token=setting['access_key'],
-            access_token_secret=setting['access_secret'])
+    for user in credential['users']:
+        clients[user] = get_client(user)
 
 def load_single(me, db_name, f):
     db = plain_db.loadKeyOnlyDB(db_name)
     wait(str(f), 60)
-    result = f(me.id)
+    result = f(me.id, None)
     while result.data:
-        print(len(result.data))
         for user in result.data:
             db.add(user.username)
-        print(result.meta.keys())
         token = result.meta.get('next_token')
         if not token:
             return
-        wait(str(f), 60)
-        result = f(me.id, pagination_token=token)
+        wait(str(f), 65)
+        result = f(me.id, token)
         
 def load_dbs(user, client):
     suffix_to_method = {
-        'followers': client.get_users_followers,
-        'followering': client.get_users_following}
+        'followers': lambda username, pagination_token: client.get_users_followers(username, max_results=1000, pagination_token=pagination_token),
+        'followering': lambda username, pagination_token: client.get_users_following(username, max_results=1000, pagination_token=pagination_token),
+    }
     me = client.get_user(username=user).data
     for suffix, f in suffix_to_method.items():
-        if user == credential['main_user'] and suffix == 'followers':
+        if user in credential['user_done']:
             continue
         load_single(me, user + '_' + suffix, f)
 
@@ -64,6 +66,24 @@ def load_db_all():
     prepare_clients()
     for user, client in clients.items():
         load_dbs(user, client)
+
+def load_db_additional():
+    main_user = credential['main_user']
+    client = get_client(main_user)
+    db = plain_db.loadKeyOnlyDB(main_user + '_followering')
+    additionl_db = plain_db.loadLargeDB('additionl_db', isIntValue=False)
+    for username in db.items():
+        if additionl_db.get(username):
+            continue
+        wait('additionl_db', 65)
+        user = client.get_user(username=username).data
+        if not user:
+            continue
+        try:
+            value = ' '.join([x.username for x in client.get_users_following(user.id, max_results=1000).data])
+        except:
+            continue
+        additionl_db.update(username, value)
 
 def get_intersection(list1, list2):
     set1 = set([x.username for x in list1])
