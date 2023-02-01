@@ -118,7 +118,6 @@ def block(link, target):
     for user in itertools.chain(generator1, generator2):
         if existing.contain(user.username):
             continue
-        count += 1
         intersection = yieldIntersections(user, additionl_db)
         intersection = list(itertools.islice(intersection, 5))
         if intersection:
@@ -128,7 +127,5 @@ def block(link, target):
             wait(target, 5)
             tele_target.send_message(getLink(user.username))
         existing.add(user.username)
-        if count == 10:
-            break
         
         
