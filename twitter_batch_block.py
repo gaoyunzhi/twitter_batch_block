@@ -20,7 +20,7 @@ def wait(key, sec):
 def prepare_dbs():
     global dbs
     dbs = {}
-    for user in credential['users'].items():
+    for user in credential['users']:
         dbs[user + '_followers'] = plain_db.loadKeyOnlyDB(user + '_followers')
         dbs[user + '_followering'] = plain_db.loadKeyOnlyDB(user + '_followering')
 
@@ -94,18 +94,16 @@ def getLink(x):
 
 def yieldIntersections(target_user, additionl_db):
     target = target_user.username
-    for key, db in dbs:
+    for key, db in dbs.items():
         if target in db.items():
             yield key
-    for user, items in additionl_db:
+    for user, items in additionl_db.items():
         if target in items.split():
             yield '%s_following' % user
 
-def getConnectedUsers(tweet_id):
-    client.get_liking_users(tweet_id).data or []
-
 def block(link, target):
     tele_target = bot.get_chat(target)
+    debug_channel = bot.get_chat(credential['debug_channel_id'])
 
     prepare_dbs()
     additionl_db = plain_db.loadLargeDB('additionl_db', isIntValue=False)
@@ -124,10 +122,13 @@ def block(link, target):
         intersection = yieldIntersections(user, additionl_db)
         intersection = list(itertools.islice(intersection, 5))
         if intersection:
-            print(user, intersection)
+            message = '%s %s %s' % (getLink(user.username), user.username, ' '.join(intersection))
+            debug_channel.send_message(message)
         else:
-            print(user, intersection)
-        if count == 2:
+            wait(target, 5)
+            tele_target.send_message(getLink(user.username))
+        existing.add(user.username)
+        if count == 10:
             break
-        # existing.add(user.username)
+        
         
