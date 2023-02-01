@@ -3,6 +3,7 @@ import tweepy
 from telegram.ext import Updater
 import plain_db
 import time
+import itertools
 
 with open('token') as f:
     token = f.read().strip()
@@ -17,12 +18,11 @@ def wait(key, sec):
     timer[key] = time.time() + sec
 
 def prepare_dbs():
-    global followers_db, following_db
-    followers_db = {}
-    following_db = {}
+    global dbs
+    dbs = {}
     for user in credential['users'].items():
-        followers_db = plain_db.loadKeyOnlyDB(user + '_followers')
-        followering_db = plain_db.loadKeyOnlyDB(user + '_followering')
+        dbs[user + '_followers'] = plain_db.loadKeyOnlyDB(user + '_followers')
+        dbs[user + '_followering'] = plain_db.loadKeyOnlyDB(user + '_followering')
 
 def get_client(user):
     return tweepy.Client(
@@ -38,29 +38,33 @@ def prepare_clients():
     for user in credential['users']:
         clients[user] = get_client(user)
 
-def load_single(me, db_name, f):
-    db = plain_db.loadKeyOnlyDB(db_name)
-    wait(str(f), 60)
-    result = f(me.id, None)
+def yieldFunc(f, sleep_key, time_sleep):
+    wait(sleep_key, time_sleep)
+    result = f(None)
     while result.data:
         for user in result.data:
-            db.add(user.username)
+            yield user
         token = result.meta.get('next_token')
         if not token:
-            return
-        wait(str(f), 65)
-        result = f(me.id, token)
+            break
+        wait(sleep_key, time_sleep)
+        result = f(token)
+
+def load_single(db_name, f, sleep_key):
+    db = plain_db.loadKeyOnlyDB(db_name)
+    for user in yieldFunc(f, sleep_key, 65):
+        db.add(user.username)
         
 def load_dbs(user, client):
-    suffix_to_method = {
-        'followers': lambda username, pagination_token: client.get_users_followers(username, max_results=1000, pagination_token=pagination_token),
-        'followering': lambda username, pagination_token: client.get_users_following(username, max_results=1000, pagination_token=pagination_token),
-    }
     me = client.get_user(username=user).data
+    suffix_to_method = {
+        'followers': lambda pagination_token: client.get_users_followers(me.id, max_results=1000, pagination_token=pagination_token),
+        'followering': lambda pagination_token: client.get_users_following(me.id, max_results=1000, pagination_token=pagination_token),
+    }
     for suffix, f in suffix_to_method.items():
         if user in credential['user_done']:
             continue
-        load_single(me, user + '_' + suffix, f)
+        load_single(user + '_' + suffix, f, suffix)
 
 def load_db_all():
     prepare_clients()
@@ -85,42 +89,45 @@ def load_db_additional():
             continue
         additionl_db.update(username, value)
 
-def get_intersection(list1, list2):
-    set1 = set([x.username for x in list1])
-    set2 = set([x.username for x in list2])
-    print('set1', len(set1), set1)
-    print('set2', len(set2), set2)
-    return set1 & set2
-
 def getLink(x):
     return 'https://twitter.com/' + x
 
-def singleBlock(client, user, me_followering):
-    followers = client.get_users_followers(user.id).data or []
-    intersection = get_intersection(me_followering, followers)
-    if intersection:
-        print(' '.join([toLink(x) for x in user.username + list(intersection)]))
-    else:
-        ...
-        # tele_target.send_message(user.username)
+def yieldIntersections(target_user, additionl_db):
+    target = target_user.username
+    for key, db in dbs:
+        if target in db.items():
+            yield key
+    for user, items in additionl_db:
+        if target in items.split():
+            yield '%s_following' % user
+
+def getConnectedUsers(tweet_id):
+    client.get_liking_users(tweet_id).data or []
 
 def block(link, target):
     tele_target = bot.get_chat(target)
-    client = tweepy.Client(
-        bearer_token=credential['bearer_token'],
-        consumer_key=credential['consumer_key'],
-        consumer_secret=credential['consumer_secret'],
-        access_token=credential['access_key'],
-        access_token_secret=credential['access_secret'])
+
+    prepare_dbs()
+    additionl_db = plain_db.loadLargeDB('additionl_db', isIntValue=False)
+
+    main_user = credential['main_user']
+    client = get_client(main_user)
     tweet_id = int(link.split('/')[-1])
-    likers = client.get_liking_users(tweet_id).data or []
-    retweeters = client.get_retweeters(tweet_id).data or []
-    me = client.get_user(username=credential['main_user']).data
-    me_followering = client.get_users_following(me.id).data
-    for user in likers + retweeters:
+    generator1 = yieldFunc(lambda token: client.get_liking_users(tweet_id, pagination_token=token), 'get_liking_users', 12.2)
+    generator2 = yieldFunc(lambda token: client.get_retweeters(tweet_id, pagination_token=token), 'get_retweeters', 12.2)
+
+    count = 0
+    for user in itertools.chain(generator1, generator2):
         if existing.contain(user.username):
             continue
-        time.sleep(120)
-        singleBlock(client, user, me_followering)
-        existing.add(user.username)
+        count += 1
+        intersection = yieldIntersections(user, additionl_db)
+        intersection = list(itertools.islice(intersection, 5))
+        if intersection:
+            print(user, intersection)
+        else:
+            print(user, intersection)
+        if count == 2:
+            break
+        # existing.add(user.username)
         

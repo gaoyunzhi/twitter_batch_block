@@ -8,6 +8,7 @@ to_block = plain_db.load('to_block')
 def test():
 	for link, target in to_block.items.items():
 		twitter_batch_block.block(link, target)
+		break
 
 def testSingleBlock():
 	client = tweepy.Client(
@@ -24,7 +25,7 @@ def testSingleBlock():
 	twitter_batch_block.singleBlock(client, target_user, me_followering)
 
 if __name__ == '__main__':
-	# test()
+	test()
 	# testSingleBlock()
 	# load_db_all()
-	load_db_additional()
+	# load_db_additional()
