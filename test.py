@@ -24,7 +24,7 @@ def testSingleBlock():
 	twitter_batch_block.singleBlock(client, target_user, me_followering)
 
 if __name__ == '__main__':
-	# test()
+	test()
 	# testSingleBlock()
 	load_db_all()
 	load_db_additional()
